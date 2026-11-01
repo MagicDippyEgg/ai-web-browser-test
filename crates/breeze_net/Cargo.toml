@@ -1,0 +1,12 @@
+[package]
+name = "breeze_net"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+breeze_core = { path = "../breeze_core" }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "cookies", "blocking"] }
+url = "2.5"
+cookie = "0.18"
+chrono = "0.4"
+serde = { version = "1.0", features = ["derive"] }

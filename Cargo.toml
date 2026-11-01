@@ -1,0 +1,12 @@
+[workspace]
+members = [
+    "crates/breeze_core",
+    "crates/breeze_html",
+    "crates/breeze_css",
+    "crates/breeze_layout",
+    "crates/breeze_render",
+    "crates/breeze_net",
+    "crates/breeze_js",
+    "crates/breeze_ui",
+]
+resolver = "2"
