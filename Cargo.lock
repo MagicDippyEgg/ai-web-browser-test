@@ -429,13 +429,16 @@ dependencies = [
 name = "breeze_render"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "breeze_core",
  "breeze_css",
  "breeze_html",
  "breeze_layout",
+ "breeze_net",
  "fontdue",
  "image",
  "tiny-skia",
+ "url",
 ]
 
 [[package]]

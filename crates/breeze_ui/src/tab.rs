@@ -103,7 +103,7 @@ impl Tab {
         // Extract title
         let titles = self.doc.get_elements_by_tag_name("title");
         if let Some(t_node) = titles.first() {
-            let t = Document::text_content(t_node).trim().to_string();
+            let t = Document::raw_text_content(t_node).trim().to_string();
             if !t.is_empty() {
                 self.title = t;
             } else {
@@ -116,12 +116,28 @@ impl Tab {
         // Initialize JavaScript runtime
         let mut js_runtime = JsRuntime::new(self.doc.clone(), Some(parsed_url.clone()));
 
-        // Run inline <script> tags
+        // Run <script> tags (both inline and external src)
         let scripts = self.doc.get_elements_by_tag_name("script");
         for script_node in scripts {
-            let code = Document::text_content(&script_node);
-            if !code.trim().is_empty() {
-                let _ = js_runtime.execute(&code);
+            let (src_opt, inline_code) = {
+                let nb = script_node.borrow();
+                let src = if let NodeData::Element(el) = &nb.data {
+                    el.get_attribute("src").map(|s| s.to_string())
+                } else {
+                    None
+                };
+                (src, Document::raw_text_content(&script_node))
+            };
+
+            if let Some(src) = src_opt {
+                if let Ok(script_url) = breeze_core::url_util::resolve_relative_url(&parsed_url, &src) {
+                    let client = HttpClient::new();
+                    if let Ok(resp) = client.fetch(&script_url, ResourceType::Script, None) {
+                        let _ = js_runtime.execute(&resp.text());
+                    }
+                }
+            } else if !inline_code.trim().is_empty() {
+                let _ = js_runtime.execute(&inline_code);
             }
         }
 
@@ -138,9 +154,37 @@ impl Tab {
         // Extract <style> blocks
         let styles = self.doc.get_elements_by_tag_name("style");
         for style_node in styles {
-            let css_text = Document::text_content(&style_node);
+            let css_text = Document::raw_text_content(&style_node);
             let sheet = CssParser::parse(&css_text);
             style_engine.add_stylesheet(sheet);
+        }
+
+        // Fetch external stylesheets: <link rel="stylesheet" href="...">
+        let links = self.doc.get_elements_by_tag_name("link");
+        let client = HttpClient::new();
+        for link_node in links {
+            let (rel, href) = {
+                let nb = link_node.borrow();
+                if let NodeData::Element(el) = &nb.data {
+                    (
+                        el.get_attribute("rel").unwrap_or_default().to_string(),
+                        el.get_attribute("href").unwrap_or_default().to_string(),
+                    )
+                } else {
+                    (String::new(), String::new())
+                }
+            };
+
+            if rel.eq_ignore_ascii_case("stylesheet") && !href.is_empty() {
+                if let Ok(base_u) = Url::parse(&self.url) {
+                    if let Ok(css_url) = breeze_core::url_util::resolve_relative_url(&base_u, &href) {
+                        if let Ok(resp) = client.fetch(&css_url, ResourceType::Style, None) {
+                            let sheet = CssParser::parse(&resp.text());
+                            style_engine.add_stylesheet(sheet);
+                        }
+                    }
+                }
+            }
         }
 
         if let Some(mut root_box) = build_layout_tree(&self.doc.root, &style_engine, None) {

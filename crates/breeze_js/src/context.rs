@@ -170,7 +170,81 @@ impl JsRuntime {
         let global_val = self.context.global_object();
         self.context.global_object().set(JsString::from("window"), global_val, true, &mut self.context).unwrap();
 
-        // 6. document object
+        // 6. window.addEventListener
+        let event_mgr1 = Rc::clone(&self.event_manager);
+        let add_event_listener_fn = unsafe {
+            NativeFunction::from_closure(move |_this, args, ctx| {
+                let event_type = args.get_or_undefined(0).to_string(ctx)?.to_std_string_escaped();
+                if let Some(cb_obj) = args.get_or_undefined(1).as_object() {
+                    event_mgr1.borrow_mut().add_event_listener("window", &event_type, cb_obj.clone());
+                }
+                Ok(JsValue::undefined())
+            })
+        }.to_js_function(self.context.realm());
+        self.context.global_object().set(JsString::from("addEventListener"), add_event_listener_fn, true, &mut self.context).unwrap();
+
+        // 7. fetch(url)
+        let base_url_clone = self.base_url.clone();
+        let curr_orig_clone = self.current_origin.clone();
+        let fetch_fn = unsafe {
+            NativeFunction::from_closure(move |_this, args, ctx| {
+                let url_str = args.get_or_undefined(0).to_string(ctx)?.to_std_string_escaped();
+                let target_url = if let Ok(u) = url::Url::parse(&url_str) {
+                    Some(u)
+                } else if let Some(base) = &base_url_clone {
+                    base.join(&url_str).ok()
+                } else {
+                    None
+                };
+
+                if let Some(u) = target_url {
+                    let client = breeze_net::HttpClient::new();
+                    match client.fetch(&u, breeze_net::ResourceType::Fetch, curr_orig_clone.as_ref()) {
+                        Ok(resp) => {
+                            let resp_obj = JsObject::with_object_proto(ctx.intrinsics());
+                            resp_obj.set(JsString::from("status"), JsValue::from(resp.status), true, ctx).unwrap();
+                            resp_obj.set(JsString::from("ok"), JsValue::from(resp.status >= 200 && resp.status < 300), true, ctx).unwrap();
+
+                            let body_text1 = resp.text();
+                            let text_fn = NativeFunction::from_closure(move |_this, _args, ctx2| {
+                                let p = boa_engine::object::builtins::JsPromise::resolve(
+                                    JsValue::from(JsString::from(body_text1.as_str())),
+                                    ctx2,
+                                );
+                                Ok(JsValue::from(p))
+                            }).to_js_function(ctx.realm());
+
+                            let body_text2 = resp.text();
+                            let json_fn = NativeFunction::from_closure(move |_this, _args, ctx2| {
+                                let expr = format!("({})", body_text2);
+                                let source = Source::from_bytes(expr.as_bytes());
+                                let val = ctx2.eval(source).unwrap_or(JsValue::null());
+                                let p = boa_engine::object::builtins::JsPromise::resolve(val, ctx2);
+                                Ok(JsValue::from(p))
+                            }).to_js_function(ctx.realm());
+
+                            resp_obj.set(JsString::from("text"), text_fn, true, ctx).unwrap();
+                            resp_obj.set(JsString::from("json"), json_fn, true, ctx).unwrap();
+
+                            let p = boa_engine::object::builtins::JsPromise::resolve(JsValue::from(resp_obj), ctx);
+                            return Ok(JsValue::from(p));
+                        }
+                        Err(e) => {
+                            let err = boa_engine::JsNativeError::typ().with_message(e.to_string());
+                            let p = boa_engine::object::builtins::JsPromise::reject(err, ctx);
+                            return Ok(JsValue::from(p));
+                        }
+                    }
+                }
+
+                let err = boa_engine::JsNativeError::typ().with_message("Invalid URL");
+                let p = boa_engine::object::builtins::JsPromise::reject(err, ctx);
+                Ok(JsValue::from(p))
+            })
+        }.to_js_function(self.context.realm());
+        self.context.global_object().set(JsString::from("fetch"), fetch_fn, true, &mut self.context).unwrap();
+
+        // 8. document object
         self.bind_document();
     }
 
@@ -199,8 +273,47 @@ impl JsRuntime {
             })
         }.to_js_function(self.context.realm());
 
+        // document.querySelector
+        let root_for_qs = Rc::clone(&doc_root);
+        let query_selector_fn = unsafe {
+            NativeFunction::from_closure(move |_this, args, ctx| {
+                let sel = args.get_or_undefined(0).to_string(ctx)?.to_std_string_escaped();
+                let doc = Document { root: Rc::clone(&root_for_qs) };
+                if sel.starts_with('#') {
+                    if let Some(node) = doc.get_element_by_id(&sel[1..]) {
+                        return Ok(create_element_js_object(ctx, node));
+                    }
+                } else if sel.starts_with('.') {
+                    let elems = doc.get_elements_by_class_name(&sel[1..]);
+                    if let Some(node) = elems.first() {
+                        return Ok(create_element_js_object(ctx, Rc::clone(node)));
+                    }
+                } else {
+                    let elems = doc.get_elements_by_tag_name(&sel);
+                    if let Some(node) = elems.first() {
+                        return Ok(create_element_js_object(ctx, Rc::clone(node)));
+                    }
+                }
+                Ok(JsValue::null())
+            })
+        }.to_js_function(self.context.realm());
+
+        // document.addEventListener
+        let event_mgr2 = Rc::clone(&self.event_manager);
+        let doc_add_event_listener_fn = unsafe {
+            NativeFunction::from_closure(move |_this, args, ctx| {
+                let event_type = args.get_or_undefined(0).to_string(ctx)?.to_std_string_escaped();
+                if let Some(cb_obj) = args.get_or_undefined(1).as_object() {
+                    event_mgr2.borrow_mut().add_event_listener("document", &event_type, cb_obj.clone());
+                }
+                Ok(JsValue::undefined())
+            })
+        }.to_js_function(self.context.realm());
+
         doc_obj.set(JsString::from("getElementById"), get_element_by_id_fn, true, &mut self.context).unwrap();
         doc_obj.set(JsString::from("createElement"), create_element_fn, true, &mut self.context).unwrap();
+        doc_obj.set(JsString::from("querySelector"), query_selector_fn, true, &mut self.context).unwrap();
+        doc_obj.set(JsString::from("addEventListener"), doc_add_event_listener_fn, true, &mut self.context).unwrap();
 
         let doc_clone = Document { root: Rc::clone(&doc_root) };
         let body_nodes = doc_clone.get_elements_by_tag_name("body");
@@ -288,9 +401,17 @@ pub fn create_element_js_object(context: &mut Context, node: NodeRef) -> JsValue
         })
     }.to_js_function(context.realm());
 
+    // element.addEventListener
+    let add_el_event_fn = unsafe {
+        NativeFunction::from_closure(move |_this, _args, _ctx| {
+            Ok(JsValue::undefined())
+        })
+    }.to_js_function(context.realm());
+
     obj.set(JsString::from("appendChild"), append_child_fn, true, context).unwrap();
     obj.set(JsString::from("setAttribute"), set_attr_fn, true, context).unwrap();
     obj.set(JsString::from("getAttribute"), get_attr_fn, true, context).unwrap();
+    obj.set(JsString::from("addEventListener"), add_el_event_fn, true, context).unwrap();
 
     JsValue::from(obj)
 }

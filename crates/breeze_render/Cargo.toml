@@ -8,6 +8,9 @@ breeze_core = { path = "../breeze_core" }
 breeze_html = { path = "../breeze_html" }
 breeze_css = { path = "../breeze_css" }
 breeze_layout = { path = "../breeze_layout" }
+breeze_net = { path = "../breeze_net" }
 tiny-skia = "0.12"
 fontdue = "0.9"
 image = "0.25"
+base64 = "0.22"
+url = "2.5"

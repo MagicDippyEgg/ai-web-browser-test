@@ -196,10 +196,33 @@ impl Document {
         let mut text = String::new();
         let n = node.borrow();
         match &n.data {
+            NodeData::Element(el) => {
+                let tag = el.tag_name.as_str();
+                if tag == "script" || tag == "style" || tag == "head" || tag == "meta" || tag == "link" {
+                    return text;
+                }
+                for child in &n.children {
+                    text.push_str(&Self::text_content(child));
+                }
+            }
             NodeData::Text { content } => text.push_str(content),
             _ => {
                 for child in &n.children {
                     text.push_str(&Self::text_content(child));
+                }
+            }
+        }
+        text
+    }
+
+    pub fn raw_text_content(node: &NodeRef) -> String {
+        let mut text = String::new();
+        let n = node.borrow();
+        match &n.data {
+            NodeData::Text { content } => text.push_str(content),
+            _ => {
+                for child in &n.children {
+                    text.push_str(&Self::raw_text_content(child));
                 }
             }
         }

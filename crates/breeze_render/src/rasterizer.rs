@@ -118,6 +118,42 @@ impl Rasterizer {
             }
         }
 
+        // Render <img> images if present
+        if let Some(node) = &layout_box.node {
+            if let NodeData::Element(el) = &node.borrow().data {
+                if el.tag_name == "img" {
+                    if let Some(src) = el.get_attribute("src") {
+                        if let Some(img_bytes) = self.load_image_bytes(src) {
+                            if let Ok(dyn_img) = image::load_from_memory(&img_bytes) {
+                                let rgba = dyn_img.to_rgba8();
+                                let img_w = rgba.width();
+                                let img_h = rgba.height();
+                                if let Some(mut img_pixmap) = Pixmap::new(img_w, img_h) {
+                                    img_pixmap.data_mut().copy_from_slice(rgba.as_raw());
+
+                                    let target_w = if w > 0.0 { w } else { img_w as f32 };
+                                    let target_h = if h > 0.0 { h } else { img_h as f32 };
+
+                                    let sx = target_w / img_w as f32;
+                                    let sy = target_h / img_h as f32;
+                                    let transform = Transform::from_scale(sx, sy).post_translate(x, y);
+
+                                    pixmap.draw_pixmap(
+                                        0,
+                                        0,
+                                        img_pixmap.as_ref(),
+                                        &tiny_skia::PixmapPaint::default(),
+                                        transform,
+                                        None,
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         if let Some(node) = &layout_box.node {
             if let NodeData::Element(el) = &node.borrow().data {
                 if el.tag_name == "input" {
@@ -165,6 +201,32 @@ impl Rasterizer {
 
         for child in &layout_box.children {
             self.render_box(pixmap, child, scroll_y);
+        }
+    }
+
+    fn load_image_bytes(&self, src: &str) -> Option<Vec<u8>> {
+        if src.starts_with("data:image/") {
+            if let Some((_, data_part)) = src.split_once(',') {
+                if src.contains(";base64,") {
+                    use base64::Engine;
+                    base64::engine::general_purpose::STANDARD.decode(data_part.trim()).ok()
+                } else {
+                    Some(data_part.as_bytes().to_vec())
+                }
+            } else {
+                None
+            }
+        } else if src.starts_with("http://") || src.starts_with("https://") {
+            if let Ok(u) = url::Url::parse(src) {
+                let client = breeze_net::HttpClient::new();
+                client.fetch(&u, breeze_net::ResourceType::Image, None).ok().map(|resp| resp.body)
+            } else {
+                None
+            }
+        } else if let Ok(bytes) = std::fs::read(src) {
+            Some(bytes)
+        } else {
+            None
         }
     }
 

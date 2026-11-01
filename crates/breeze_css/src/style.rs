@@ -5,6 +5,9 @@ use breeze_html::dom::{NodeData, NodeRef};
 use std::rc::Rc;
 
 pub const DEFAULT_USER_AGENT_CSS: &str = r#"
+head, script, style, title, meta, link {
+    display: none;
+}
 html, body {
     margin: 8px;
     padding: 0px;

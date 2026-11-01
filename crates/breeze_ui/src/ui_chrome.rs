@@ -79,11 +79,11 @@ impl UiChrome {
             pixmap.fill_rect(r, &paint, Transform::identity(), None);
         }
 
-        // Navigation buttons: Back [<], Forward [>], Reload [R]
+        // Navigation buttons: Back [<], Forward [>], Reload [R], Stop [X]
         let btn_y = 42.0;
         let btn_h = 28.0;
 
-        // Back button
+        // Back button [10..38]
         if let Some(r) = Rect::from_xywh(10.0, btn_y, 28.0, btn_h) {
             let mut paint = Paint::default();
             paint.set_color(Color::from_rgba8(230, 232, 236, 255));
@@ -91,25 +91,33 @@ impl UiChrome {
             self.draw_text(pixmap, "<", 19.0, btn_y + 19.0, 14.0, [80, 80, 80, 255]);
         }
 
-        // Forward button
-        if let Some(r) = Rect::from_xywh(44.0, btn_y, 28.0, btn_h) {
+        // Forward button [42..70]
+        if let Some(r) = Rect::from_xywh(42.0, btn_y, 28.0, btn_h) {
             let mut paint = Paint::default();
             paint.set_color(Color::from_rgba8(230, 232, 236, 255));
             pixmap.fill_rect(r, &paint, Transform::identity(), None);
-            self.draw_text(pixmap, ">", 53.0, btn_y + 19.0, 14.0, [80, 80, 80, 255]);
+            self.draw_text(pixmap, ">", 51.0, btn_y + 19.0, 14.0, [80, 80, 80, 255]);
         }
 
-        // Reload button
-        if let Some(r) = Rect::from_xywh(78.0, btn_y, 28.0, btn_h) {
+        // Reload button [74..102]
+        if let Some(r) = Rect::from_xywh(74.0, btn_y, 28.0, btn_h) {
             let mut paint = Paint::default();
             paint.set_color(Color::from_rgba8(230, 232, 236, 255));
             pixmap.fill_rect(r, &paint, Transform::identity(), None);
-            self.draw_text(pixmap, "⟳", 86.0, btn_y + 20.0, 14.0, [80, 80, 80, 255]);
+            self.draw_text(pixmap, "⟳", 82.0, btn_y + 20.0, 14.0, [80, 80, 80, 255]);
         }
 
-        // Address bar box
-        let addr_x = 116.0;
-        let addr_w = (width as f32 - 130.0).max(100.0);
+        // Stop button [106..134]
+        if let Some(r) = Rect::from_xywh(106.0, btn_y, 28.0, btn_h) {
+            let mut paint = Paint::default();
+            paint.set_color(Color::from_rgba8(230, 232, 236, 255));
+            pixmap.fill_rect(r, &paint, Transform::identity(), None);
+            self.draw_text(pixmap, "✕", 115.0, btn_y + 19.0, 13.0, [80, 80, 80, 255]);
+        }
+
+        // Address bar box [142..]
+        let addr_x = 142.0;
+        let addr_w = (width as f32 - 156.0).max(100.0);
         if let Some(r) = Rect::from_xywh(addr_x, btn_y, addr_w, btn_h) {
             let mut paint = Paint::default();
             paint.set_color(Color::WHITE);

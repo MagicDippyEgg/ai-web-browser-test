@@ -137,22 +137,28 @@ impl App {
                 return;
             }
 
-            // Forward button: [44..72]
-            if mouse_x >= 44.0 && mouse_x <= 72.0 && mouse_y >= btn_y && mouse_y <= btn_y + btn_h {
+            // Forward button: [42..70]
+            if mouse_x >= 42.0 && mouse_x <= 70.0 && mouse_y >= btn_y && mouse_y <= btn_y + btn_h {
                 self.tabs[self.active_tab_idx].go_forward(vp_w, vp_h);
                 self.address_bar_text = self.tabs[self.active_tab_idx].url.clone();
                 return;
             }
 
-            // Reload button: [78..106]
-            if mouse_x >= 78.0 && mouse_x <= 106.0 && mouse_y >= btn_y && mouse_y <= btn_y + btn_h {
+            // Reload button: [74..102]
+            if mouse_x >= 74.0 && mouse_x <= 102.0 && mouse_y >= btn_y && mouse_y <= btn_y + btn_h {
                 self.tabs[self.active_tab_idx].reload(vp_w, vp_h);
                 return;
             }
 
-            // Address bar: [116..]
-            let addr_w = (self.width as f32 - 130.0).max(100.0);
-            if mouse_x >= 116.0 && mouse_x <= 116.0 + addr_w && mouse_y >= btn_y && mouse_y <= btn_y + btn_h {
+            // Stop button: [106..134]
+            if mouse_x >= 106.0 && mouse_x <= 134.0 && mouse_y >= btn_y && mouse_y <= btn_y + btn_h {
+                self.tabs[self.active_tab_idx].is_loading = false;
+                return;
+            }
+
+            // Address bar: [142..]
+            let addr_w = (self.width as f32 - 156.0).max(100.0);
+            if mouse_x >= 142.0 && mouse_x <= 142.0 + addr_w && mouse_y >= btn_y && mouse_y <= btn_y + btn_h {
                 self.address_bar_focused = true;
                 return;
             }
