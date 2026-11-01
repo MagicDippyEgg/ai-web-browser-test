@@ -162,6 +162,15 @@ impl App {
         }
     }
 
+    pub fn handle_char_input(&mut self, c: char) {
+        if self.address_bar_focused {
+            // Filter non-printable control characters
+            if !c.is_control() {
+                self.address_bar_text.push(c);
+            }
+        }
+    }
+
     pub fn handle_key_input(&mut self, key: Key) {
         if self.address_bar_focused {
             let vp_w = self.width as f32;

@@ -1,12 +1,27 @@
 use clap::Parser;
-use minifb::{Key, Window, WindowOptions};
+use minifb::{InputCallback, Key, Window, WindowOptions};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 pub mod app;
 pub mod tab;
 pub mod ui_chrome;
+#[cfg(test)]
+pub mod tests;
 
 use app::App;
+
+struct WindowInputHandler {
+    char_queue: Arc<Mutex<Vec<char>>>,
+}
+
+impl InputCallback for WindowInputHandler {
+    fn add_char(&mut self, uni_char: u32) {
+        if let Some(c) = char::from_u32(uni_char) {
+            self.char_queue.lock().unwrap().push(c);
+        }
+    }
+}
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Breeze Web Browser built from scratch", long_about = None)]
@@ -73,7 +88,12 @@ fn main() {
         },
     ).expect("Unable to open window");
 
-    window.limit_update_rate(Some(Duration::from_micros(16600))); // ~60fps
+    let char_queue = Arc::new(Mutex::new(Vec::new()));
+    let input_handler = WindowInputHandler {
+        char_queue: Arc::clone(&char_queue),
+    };
+    window.set_input_callback(Box::new(input_handler));
+    window.set_target_fps(60);
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // Handle Mouse Clicks
@@ -83,7 +103,16 @@ fn main() {
             }
         }
 
-        // Handle Keyboard Keys
+        // Handle Typed Characters (e.g. typing URL into address bar)
+        let typed_chars: Vec<char> = {
+            let mut q = char_queue.lock().unwrap();
+            q.drain(..).collect()
+        };
+        for ch in typed_chars {
+            browser_app.handle_char_input(ch);
+        }
+
+        // Handle Control Keyboard Keys (Enter, Backspace, etc.)
         let keys = window.get_keys_pressed(minifb::KeyRepeat::Yes);
         for key in keys {
             browser_app.handle_key_input(key);
