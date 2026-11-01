@@ -1,0 +1,9 @@
+[package]
+name = "breeze_layout"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+breeze_core = { path = "../breeze_core" }
+breeze_html = { path = "../breeze_html" }
+breeze_css = { path = "../breeze_css" }

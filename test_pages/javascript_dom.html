@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JavaScript DOM & Timers</title>
+</head>
+<body>
+    <h1 id="status">Loading...</h1>
+    <div id="counter">Count: 0</div>
+    <script>
+        console.log("JavaScript engine is running!");
+        let statusEl = document.getElementById("status");
+        if (statusEl) {
+            statusEl.setAttribute("data-ready", "true");
+        }
+        let count = 0;
+        let counterEl = document.getElementById("counter");
+        setTimeout(function() {
+            count += 1;
+            console.log("Timer fired, count is now:", count);
+        }, 10);
+    </script>
+</body>
+</html>

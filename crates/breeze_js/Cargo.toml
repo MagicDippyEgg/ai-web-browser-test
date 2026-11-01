@@ -1,0 +1,11 @@
+[package]
+name = "breeze_js"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+breeze_core = { path = "../breeze_core" }
+breeze_html = { path = "../breeze_html" }
+breeze_net = { path = "../breeze_net" }
+boa_engine = "0.20"
+url = "2.5"
